@@ -74,3 +74,29 @@ class WellnessGoal(BaseModel):
         if self_care_blocks_per_week < 0:
             raise ValueError("self-care blocks per week cannot be negative")
         return self_care_blocks_per_week
+    
+
+class Preferences(BaseModel):
+    earliest_start: time
+    latest_end: time
+    study_block_minutes: int
+    break_minutes: int
+
+    @validator("latest_end")
+    def check_time_order(cls, latest_end, values):
+        earliest_start = values.get("earliest_start")
+        if earliest_start and latest_end <= earliest_start:
+            raise ValueError("Latest_end must be after earliest_start")
+        return latest_end
+    
+    @validator("study_block_minutes")
+    def check_study_block_minutes(cls, study_block_minutes):
+        if study_block_minutes <= 0:
+            raise ValueError("Study block minutes must be greater than 0")
+        return study_block_minutes
+    
+    @validator("break_minutes")
+    def check_break_minutes(cls, break_minutes):
+        if break_minutes < 0:
+            raise ValueError("Break minutes cannot be negative")
+        return break_minutes

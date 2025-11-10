@@ -1,5 +1,5 @@
 from datetime import date, time
-from src.models import Event, Task, WellnessGoal
+from src.models import Event, Task, WellnessGoal, Preferences
 
 e = Event (
     name = "COMP 232 Lecture",
@@ -27,3 +27,12 @@ w = WellnessGoal (
 )
 
 print(w)
+
+p = Preferences (
+    earliest_start = time(8, 0),
+    latest_end = time(22, 0),
+    study_block_minutes = 60,
+    break_minutes = 15
+)
+
+print(p)
