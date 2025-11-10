@@ -1,5 +1,5 @@
 from datetime import date, time
-from src.models import Event
+from src.models import Event, Task
 
 e = Event (
     name = "COMP 232 Lecture",
@@ -9,3 +9,12 @@ e = Event (
 )
 
 print(e)
+
+t = Task (
+    title = "Study for COMP 232 Quiz",
+    estimated_minutes = 90,
+    priority = 3,
+    due_date = date(2025, 12, 15)
+)
+
+print(t)

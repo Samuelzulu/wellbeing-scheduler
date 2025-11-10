@@ -26,3 +26,21 @@ class Task(BaseModel):
     priority: int
     due_date: date
     notes: Optional[str] = None
+
+    @validator("estimated_minutes")
+    def check_estimated_minutes(cls, estimated_minutes):
+        if estimated_minutes <= 0:
+            raise ValueError("Estimated minutes must be greater than 0")
+        return estimated_minutes
+    
+    @validator("priority")
+    def check_priority(cls, priority):
+        if priority < 1 or priority > 5:
+            raise ValueError("Priority must be between 1 and 5")
+        return priority
+    
+    @validator("due_date")
+    def check_due_date(cls, due_date):
+        if due_date < date.today():
+            raise ValueError("Due date cannot be in the past")
+        return due_date
