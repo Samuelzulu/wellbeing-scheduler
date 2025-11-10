@@ -44,3 +44,33 @@ class Task(BaseModel):
         if due_date < date.today():
             raise ValueError("Due date cannot be in the past")
         return due_date
+    
+class WellnessGoal(BaseModel):
+    min_sleep_hours_per_day: float
+    workouts_per_week: int
+    meals_per_day: int
+    self_care_blocks_per_week: int
+
+    @validator("min_sleep_hours_per_day")
+    def check_sleep_hours(cls, min_sleep_hours_per_day):
+        if min_sleep_hours_per_day <= 0:
+            raise ValueError("sleep hours must be greater than 0")
+        return min_sleep_hours_per_day
+    
+    @validator("workouts_per_week")
+    def check_workouts(cls, workouts_per_week):
+        if workouts_per_week < 0:
+            raise ValueError("Workouts per week cannot be negative")
+        return workouts_per_week
+    
+    @validator("meals_per_day")
+    def check_meals(cls, meals_per_day):
+        if meals_per_day < 1:
+            raise ValueError("Meals per day must be at least 1")
+        return meals_per_day
+    
+    @validator("self_care_blocks_per_week")
+    def check_self_care(cls, self_care_blocks_per_week):
+        if self_care_blocks_per_week < 0:
+            raise ValueError("self-care blocks per week cannot be negative")
+        return self_care_blocks_per_week

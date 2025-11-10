@@ -1,5 +1,5 @@
 from datetime import date, time
-from src.models import Event, Task
+from src.models import Event, Task, WellnessGoal
 
 e = Event (
     name = "COMP 232 Lecture",
@@ -18,3 +18,12 @@ t = Task (
 )
 
 print(t)
+
+w = WellnessGoal (
+    min_sleep_hours_per_day = 7.5,
+    workouts_per_week = 3,
+    meals_per_day = 3,
+    self_care_blocks_per_week = 2
+)
+
+print(w)
