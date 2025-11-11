@@ -30,23 +30,20 @@ def generate_weekly_plan (
     weekly_grid = {d: [] for d in week_dates}
 
     sleep_duration = timedelta(hours = goals.min_sleep_hours_per_day)
-
     for day in weekly_grid:
         sleep_start_dt = datetime.combine(day, prefs.latest_end)
         sleep_end_dt = sleep_start_dt + sleep_duration
-
         sleep_block = {
             "start": sleep_start_dt.time(),
             "end": sleep_end_dt.time(),
             "category": "sleep"
         }
-
         weekly_grid[day].append(sleep_block)
 
     #place fixed events (classes, appointments, shifts, etc.)
     for event in events:
         event_day = event.date
-        if event_day is not weekly_grid:
+        if event_day not in weekly_grid:
             continue    #skip over days that are outside 7-day range
 
         #build datetime versions of event start/end
@@ -71,44 +68,44 @@ def generate_weekly_plan (
                 "end": event.end_time,
                 "category": event.category or "event"
             }
-
             weekly_grid[event_day].append(event_block)
-
-    print(weekly_grid)
+            
+      #sort blocks for each day
+    for day, blocks in weekly_grid.items():
+        weekly_grid[day] = sorted(blocks, key = lambda b: b["start"])
+            
+    print_schedule(weekly_grid)
     return weekly_grid
 
+def print_schedule(weekly_grid):
+    print("\n====================== WEEKLY SCHEDULE ======================\n")
+    for day, blocks in weekly_grid.items():
+        print(f"{day.strftime('%A, %B %d, %Y')}")
+        if not blocks:
+            print(" (No scheduled activities)")
+        for block in blocks:
+            start = block['start'].strftime("%H:%M")
+            end = block['end'].strftime("%H:%M")
+            category = block['category'].capitalize()
+            print(f" {category}: {start} -> {end}")
+        print() #blank line between days
+        
 if __name__ == "__main__":
-    #temporary manual test
     from .models import Event, Task, WellnessGoal, Preferences
     from datetime import time, date
-    #dummy test objects
-    e = []
-    t = []
-    g = WellnessGoal(min_sleep_hours_per_day = 7, workouts_per_week = 3, meals_per_day = 3, self_care_blocks_per_week = 2)
-    p = Preferences(earliest_start = time(8, 0), latest_end = time(22, 0), study_block_minutes = 60, break_minutes = 15)
-
-    generate_weekly_plan(e, t, g, p)
-
-    #manual test for fixed events
+    
     events = [
         Event(
-            name="COMP 232 Lecture",
-            date=date(2025, 11, 17),
-            start_time=time(9, 0),
-            end_time=time(10, 0),
-            category="class"
-        ),
-        Event(
-            name="Late Night Study",
-            date=date(2025, 11, 17),
-            start_time=time(22, 0),
-            end_time=time(23, 0),
-            category="study"
+            name = "Comp 232 Lecture",
+            date = date(2025, 11, 17),
+            start_time = time(9, 0),
+            end_time = time(10, 0),
+            category = "study"
         ),
     ]
-
+    
     tasks = []
-    goals = WellnessGoal(min_sleep_hours_per_day=7, workouts_per_week=3, meals_per_day=3, self_care_blocks_per_week=2)
-    prefs = Preferences(earliest_start=time(8, 0), latest_end=time(22, 0), study_block_minutes=60, break_minutes=15)
-
+    goals = WellnessGoal(min_sleep_hours_per_day = 7, workouts_per_week = 3, meals_per_day = 3, self_care_blocks_per_week = 2)
+    prefs = Preferences(earliest_start = time(8, 0), latest_end = time(22, 0), study_block_minutes = 60, break_minutes = 15)
+    
     generate_weekly_plan(events, tasks, goals, prefs)
