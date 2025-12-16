@@ -55,7 +55,85 @@ def find_open_slots_for_day(day, blocks, prefs):
         
     return gaps
         
+def sort_tasks_for_scheduling (tasks):
+    # priority: higher first, due_date: earlier first
+    return sorted(tasks, key=lambda t: (-t.priority, t.due_date))
+
+def place_study_for_day (day, weekly_grid, tasks, prefs):
+    gaps = find_open_slots_for_day(day, weekly_grid[day], prefs)
     
+    block_len = timedelta(minutes=prefs.study_block_minutes)
+    
+    for gap_start_t, gap_end_t in gaps:
+        gap_start = datetime.combine(day, gap_start_t)
+        gap_end = datetime.combine(day, gap_end_t)
+        
+        cursor = gap_start
+        
+        # keep placing blocks while there is time and tasks remaining
+        while cursor + block_len <= gap_end and tasks:
+            current_task = tasks[0]
+            
+            # if task has no minutes left, move to next task
+            if current_task.estimated_minutes <= 0:
+                tasks.pop(0)
+                continue
+            
+            # place a study block
+            study_end = cursor + block_len
+            
+            weekly_grid[day].append({
+                "start": cursor.time(),
+                "end": study_end.time(),
+                "category": f"study: {current_task.title}"
+            })
+            
+            # subtract minutes
+            current_task.estimated_minutes -= prefs.study_block_minutes
+            
+            # advance cursor
+            cursor = study_end
+            
+def try_place_one_study_block(day, weekly_grid, task, prefs):
+    """
+    Try to place ONE study block for a single task somewhere in today's open slots.
+    Returns True if placed, False otherwise.
+    """
+    
+    gaps = find_open_slots_for_day(day, weekly_grid[day], prefs)
+    
+    study_len = timedelta(minutes=prefs.study_block_minutes)
+    break_len = timedelta(minutes=prefs.break_minutes)
+    
+    for gap_start_t, gap_end_t in gaps:
+        gap_start = datetime.combine(day, gap_start_t)
+        gap_end = datetime.combine(day, gap_end_t)
+        
+        cursor = gap_start
+        
+        # need enough room for study + break (break optional at end)
+        if cursor + study_len <= gap_end:
+            study_end = cursor + study_len
+            
+            weekly_grid[day].append({
+                "start": cursor.time(),
+                "end": study_end.time(),
+                "category": f"study: {task.title}"
+            })
+            
+            task.estimated_minutes -= prefs.study_block_minutes
+            
+            # add a break block too (only if it fits in the gap)
+            break_end = study_end + break_len
+            if break_len.total_seconds() > 0 and break_end <= gap_end:
+                weekly_grid[day].append({
+                    "start": study_end.time(),
+                    "end": break_end.time(),
+                    "category": "break"
+                })
+                
+            return True
+    return False
 
 def generate_weekly_plan (
         events: List[Event],
@@ -138,6 +216,38 @@ def generate_weekly_plan (
                 for s, e in gaps
             )
             print(f"Open slots on {day}: {formatted}")
+            
+    # place study blocks into those open slots
+    task_queue = sort_tasks_for_scheduling(tasks)
+    
+    # keep looping days until no more progress is possible or tasks finish
+    progress = True
+    while progress and task_queue:
+        progress = False
+        
+        for day in weekly_grid:
+            if not task_queue:
+                break
+        
+            # remove tasks already completed
+            task_queue = [t for t in task_queue if t.estimated_minutes > 0]
+            if not task_queue:
+                break
+            
+            # attempt: place ONE vlock for the highest-priority remaining task
+            task = task_queue[0]
+            placed = try_place_one_study_block(day, weekly_grid, task, prefs)
+            
+            if placed:
+                progress = True
+                
+                # rotate to the back so we spread work across tasks + days
+                task_queue = task_queue[1:] + [task]
+        
+        
+    # re-sort again because of the just appened new blocks (study)
+    for day, blocks in weekly_grid.items():
+        weekly_grid[day] = sorted(blocks, key=lambda b: b["start"])
     
     # print readable schedule
     print_schedule(weekly_grid)
@@ -163,14 +273,22 @@ if __name__ == "__main__":
     events = [
         Event(
             name = "Comp 232 Lecture",
-            date = date(2025, 11, 17),
+            date = date(2025, 12, 15),
             start_time = time(9, 0),
             end_time = time(10, 0),
-            category = "study"
+            category = "class"
         ),
     ]
     
-    tasks = []
+    tasks = [
+        Task(
+            title = "Study for COMP 232 Quiz",
+            course = "COMP 232",
+            estimated_minutes = 180,
+            priority = 5,
+            due_date = date(2025, 12, 20)
+        )
+    ]
     goals = WellnessGoal(min_sleep_hours_per_day = 7, workouts_per_week = 3, meals_per_day = 3, self_care_blocks_per_week = 2)
     prefs = Preferences(earliest_start = time(8, 0), latest_end = time(22, 0), study_block_minutes = 60, break_minutes = 15)
     
