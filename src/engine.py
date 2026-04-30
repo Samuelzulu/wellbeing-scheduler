@@ -39,7 +39,7 @@ def find_open_slots_for_day(day, blocks, prefs):
         else:
             merged[-1][1] = max(merged[-1][1], interval[1])
             
-    # ind gaps between merged occupied intervals
+    # find gaps between merged occupied intervals
     gaps = []
     cur = window_start
     min_gap = timedelta(minutes = prefs.study_block_minutes)    # minimum useful gap
@@ -142,7 +142,7 @@ def generate_weekly_plan (
         prefs: Preferences
 ):
     """
-    Generate a weeklyy schedule plan on user input.
+    Generate a weekly schedule plan based on user input.
     Steps (to be implemented):
         1. Create weekly time grid
         2. Place sleep blocks
@@ -194,7 +194,7 @@ def generate_weekly_plan (
                 print(f"Overlap detected on {event_day} with {block['category']}")
                 break
 
-        #add event only if no overlap
+        # add event only if no overlap
         if not overlap:
             event_block = {
                 "start": event.start_time,
@@ -234,7 +234,7 @@ def generate_weekly_plan (
             if not task_queue:
                 break
             
-            # attempt: place ONE vlock for the highest-priority remaining task
+            # attempt: place ONE block for the highest-priority remaining task
             task = task_queue[0]
             placed = try_place_one_study_block(day, weekly_grid, task, prefs)
             
@@ -245,7 +245,7 @@ def generate_weekly_plan (
                 task_queue = task_queue[1:] + [task]
         
         
-    # re-sort again because of the just appened new blocks (study)
+    # re-sort again after newly appended study blocks
     for day, blocks in weekly_grid.items():
         weekly_grid[day] = sorted(blocks, key=lambda b: b["start"])
     
