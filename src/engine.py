@@ -135,6 +135,85 @@ def try_place_one_study_block(day, weekly_grid, task, prefs):
             return True
     return False
 
+def place_meals_for_day(day, weekly_grid, goals, prefs):
+    """
+    Place evenly-spaced meal blocks across the day window.
+    Each meal block is 30 minutes. Skips the slot if it overlaps an existing block.
+    """
+    if goals.meals_per_day < 1:
+        return
+
+    window_start = datetime.combine(day, prefs.earliest_start)
+    window_end = datetime.combine(day, prefs.latest_end)
+    window_minutes = (window_end - window_start).total_seconds() / 60
+    meal_duration = timedelta(minutes=30)
+
+    # space meals evenly across the window
+    interval = window_minutes / (goals.meals_per_day + 1)
+
+    for i in range(1, goals.meals_per_day + 1):
+        meal_start = window_start + timedelta(minutes=interval * i)
+        meal_end = meal_start + meal_duration
+
+        # clamp to window
+        if meal_end > window_end:
+            meal_end = window_end
+            meal_start = meal_end - meal_duration
+
+        # skip if overlaps any existing block
+        overlap = False
+        for block in weekly_grid[day]:
+            block_start = datetime.combine(day, block["start"])
+            block_end = datetime.combine(day, block["end"])
+            if not (meal_end <= block_start or meal_start >= block_end):
+                overlap = True
+                break
+
+        if not overlap:
+            weekly_grid[day].append({
+                "start": meal_start.time(),
+                "end": meal_end.time(),
+                "category": "meal"
+            })
+
+
+def place_workouts_for_week(weekly_grid, goals, prefs):
+    """
+    Distribute workout blocks across the week, aiming for goals.workouts_per_week.
+    Each workout is 60 minutes. Placed in the first available slot on each day,
+    spacing them out by skipping days that already have a workout.
+    """
+    if goals.workouts_per_week < 1:
+        return
+
+    workout_duration = timedelta(minutes=60)
+    placed = 0
+    days = list(weekly_grid.keys())
+
+    # spread workouts evenly: pick every Nth day
+    step = max(1, len(days) // goals.workouts_per_week)
+
+    for i in range(0, len(days), step):
+        if placed >= goals.workouts_per_week:
+            break
+
+        day = days[i]
+        gaps = find_open_slots_for_day(day, weekly_grid[day], prefs)
+
+        for gap_start_t, gap_end_t in gaps:
+            gap_start = datetime.combine(day, gap_start_t)
+            gap_end = datetime.combine(day, gap_end_t)
+
+            if gap_start + workout_duration <= gap_end:
+                workout_end = gap_start + workout_duration
+                weekly_grid[day].append({
+                    "start": gap_start.time(),
+                    "end": workout_end.time(),
+                    "category": "workout"
+                })
+                placed += 1
+                break
+
 def generate_weekly_plan (
         events: List[Event],
         tasks: List[Task],
@@ -143,16 +222,16 @@ def generate_weekly_plan (
 ):
     """
     Generate a weekly schedule plan based on user input.
-    Steps (to be implemented):
-        1. Create weekly time grid
+    Steps:
+        1. Create weekly time grid (7 days from this Monday)
         2. Place sleep blocks
-        3. Place fixed events
-        4. Identify open slots
-        5. (Later) Insert meals, study, workouts
+        3. Place fixed events (with overlap detection)
+        4. Place meals and workouts
+        5. Place study blocks in remaining open slots
     """
     today = date.today()
 
-    #how many days until next Monday
+    # how many days until next Monday
     days_until_monday = (7 - today.weekday()) % 7
     monday = today + timedelta(days = days_until_monday)
 
@@ -206,18 +285,17 @@ def generate_weekly_plan (
     # sort blocks for each day
     for day, blocks in weekly_grid.items():
         weekly_grid[day] = sorted(blocks, key = lambda b: b["start"])
-        
-    # show open slots (debug)
-    for day, blocks in weekly_grid.items():
-        gaps = find_open_slots_for_day(day, blocks, prefs)
-        if gaps:
-            formatted = ", ".join(
-                f"{s.strftime('%H:%M')} - {e.strftime('%H:%M')}"
-                for s, e in gaps
-            )
-            print(f"Open slots on {day}: {formatted}")
             
-    # place study blocks into those open slots
+    # place meals and workouts before study so they get priority slots
+    for day in weekly_grid:
+        place_meals_for_day(day, weekly_grid, goals, prefs)
+    place_workouts_for_week(weekly_grid, goals, prefs)
+
+    # re-sort after meals/workouts
+    for day, blocks in weekly_grid.items():
+        weekly_grid[day] = sorted(blocks, key=lambda b: b["start"])
+
+    # place study blocks into remaining open slots
     task_queue = sort_tasks_for_scheduling(tasks)
     
     # keep looping days until no more progress is possible or tasks finish
