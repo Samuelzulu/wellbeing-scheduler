@@ -1,5 +1,5 @@
-from datetime import time
-from typing import List
+from datetime import datetime, date, time, timedelta
+from typing import Dict, List
 
 
 def check_no_study_after(blocks: List[dict], cutoff: time = time(21, 0)) -> List[str]:
@@ -39,7 +39,6 @@ def check_no_back_to_back_study(blocks: List[dict]) -> List[str]:
 
 def check_minimum_free_time(blocks: List[dict], prefs, min_free_minutes: int = 60) -> List[str]:
     """Flag days where free time within the window is below `min_free_minutes`."""
-    from datetime import datetime, date, timedelta
 
     violations = []
     window_start = datetime.combine(date.today(), prefs.earliest_start)
@@ -63,8 +62,7 @@ def check_minimum_free_time(blocks: List[dict], prefs, min_free_minutes: int = 6
     return violations
 
 
-def run_all_rules(weekly_grid: dict, prefs, study_cutoff: time = time(21, 0),
-                  min_free_minutes: int = 60) -> dict:
+def run_all_rules(weekly_grid: Dict[date, List[dict]], prefs, study_cutoff: time = time(21, 0), min_free_minutes: int = 60) -> Dict[date, List[str]]:
     """
     Run all rule checks across every day.
     Returns a dict of {date: [violation strings]}, only including days with violations.
@@ -80,7 +78,7 @@ def run_all_rules(weekly_grid: dict, prefs, study_cutoff: time = time(21, 0),
     return report
 
 
-def print_rules_report(report: dict) -> None:
+def print_rules_report(report: Dict[date, List[str]]) -> None:
     """Print a human-readable rules violation report."""
     print("\n==================== RULES VIOLATIONS ====================\n")
     if not report:

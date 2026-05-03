@@ -1,5 +1,4 @@
-from datetime import timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 import datetime
 
 
@@ -8,7 +7,7 @@ WELLNESS_CATEGORIES = {"meal", "workout", "sleep"}
 STUDY_PREFIX = "study:"
 
 
-def _total_minutes(blocks: List[dict], category_filter=None) -> float:
+def _total_minutes(blocks: List[dict], category_filter: Optional[str] = None) -> float:
     """Sum up block durations, optionally filtered by category prefix."""
     total = 0.0
     for block in blocks:
@@ -22,7 +21,7 @@ def _total_minutes(blocks: List[dict], category_filter=None) -> float:
     return total
 
 
-def score_day(blocks: List[dict], prefs) -> dict:
+def score_day(blocks: List[dict], prefs) -> Dict[str, float]:
     """
     Score a single day's blocks. Returns a dict with:
       - study_minutes
@@ -61,7 +60,7 @@ def score_day(blocks: List[dict], prefs) -> dict:
     }
 
 
-def score_week(weekly_grid: Dict, prefs) -> dict:
+def score_week(weekly_grid: Dict[datetime.date, List[dict]], prefs) -> Dict:
     """
     Score the full weekly schedule. Returns per-day scores plus a weekly summary.
     """
@@ -90,7 +89,7 @@ def score_week(weekly_grid: Dict, prefs) -> dict:
     }
 
 
-def print_score_report(score: dict) -> None:
+def print_score_report(score: Dict) -> None:
     """Print a human-readable weekly score report."""
     print("\n==================== SCHEDULE SCORE REPORT ====================\n")
     for day, ds in score["days"].items():

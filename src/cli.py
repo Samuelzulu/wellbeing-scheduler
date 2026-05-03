@@ -1,5 +1,8 @@
+# Usage: PYTHONPATH=. python3 -m src.cli --score --rules
+# (Typer single-command mode — no subcommand needed)
+
 import typer
-from datetime import date, time
+from datetime import time
 from typing import List
 
 from .models import Event, Task, WellnessGoal, Preferences
@@ -7,11 +10,13 @@ from .engine import generate_weekly_plan
 from .scoring import score_week, print_score_report
 from .rules import run_all_rules, print_rules_report
 
-app = typer.Typer(help="Student well-being scheduler — generate your weekly plan.", add_completion=False)
-app = typer.Typer(help="Student well-being scheduler — generate your weekly plan.", invoke_without_command=False)
+app = typer.Typer(
+    help="Student well-being scheduler — generate your weekly plan.",
+    add_completion=False,
+)
 
 
-@app.command("plan")
+@app.command()
 def plan(
     sleep: float = typer.Option(7.0, help="Minimum sleep hours per day"),
     workouts: int = typer.Option(3, help="Workouts per week"),
@@ -23,7 +28,7 @@ def plan(
     break_mins: int = typer.Option(15, help="Break length after each study block"),
     score: bool = typer.Option(False, "--score", help="Print balance score report"),
     rules: bool = typer.Option(False, "--rules", help="Print rules violation report"),
-):
+) -> None:
     """Generate a weekly schedule and print it to the terminal."""
 
     def _parse_time(s: str) -> time:
@@ -58,7 +63,7 @@ def plan(
         print_rules_report(violations)
 
 
-def main():
+def main() -> None:
     app()
 
 

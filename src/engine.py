@@ -1,8 +1,13 @@
+import logging
 from datetime import datetime, time, timedelta, date
-from typing import List
+from typing import Dict, List, Tuple
+
 from .models import Event, Task, WellnessGoal, Preferences
 
-def find_open_slots_for_day(day, blocks, prefs):
+logger = logging.getLogger(__name__)
+
+# find_open_slots_for_day
+def find_open_slots_for_day(day: date, blocks: List[dict], prefs: Preferences) -> List[Tuple[time, time]]:
     """
     Return list of (start_time, end_time) tuples representing free gaps within the day window
     [prefs.earliest_start, prefs.latest_end], excluding existing blocks.
@@ -55,11 +60,13 @@ def find_open_slots_for_day(day, blocks, prefs):
         
     return gaps
         
-def sort_tasks_for_scheduling (tasks):
+# sort_tasks_for_scheduling
+def sort_tasks_for_scheduling(tasks: List[Task]) -> List[Task]:
     # priority: higher first, due_date: earlier first
     return sorted(tasks, key=lambda t: (-t.priority, t.due_date))
 
-def place_study_for_day (day, weekly_grid, tasks, prefs):
+# place_study_for_day
+def place_study_for_day(day: date, weekly_grid: Dict[date, List[dict]], tasks: List[Task], prefs: Preferences) -> None:
     gaps = find_open_slots_for_day(day, weekly_grid[day], prefs)
     
     block_len = timedelta(minutes=prefs.study_block_minutes)
@@ -94,7 +101,8 @@ def place_study_for_day (day, weekly_grid, tasks, prefs):
             # advance cursor
             cursor = study_end
             
-def try_place_one_study_block(day, weekly_grid, task, prefs):
+# try_place_one_study_block
+def try_place_one_study_block(day: date, weekly_grid: Dict[date, List[dict]], task: Task, prefs: Preferences) -> bool:
     """
     Try to place ONE study block for a single task somewhere in today's open slots.
     Returns True if placed, False otherwise.
@@ -135,7 +143,8 @@ def try_place_one_study_block(day, weekly_grid, task, prefs):
             return True
     return False
 
-def place_meals_for_day(day, weekly_grid, goals, prefs):
+# place_meals_for_day
+def place_meals_for_day(day: date, weekly_grid: Dict[date, List[dict]], goals: WellnessGoal, prefs: Preferences) -> None:
     """
     Place evenly-spaced meal blocks across the day window.
     Each meal block is 30 minutes. Skips the slot if it overlaps an existing block.
@@ -177,7 +186,8 @@ def place_meals_for_day(day, weekly_grid, goals, prefs):
             })
 
 
-def place_workouts_for_week(weekly_grid, goals, prefs):
+# place_workouts_for_week
+def place_workouts_for_week(weekly_grid: Dict[date, List[dict]], goals: WellnessGoal, prefs: Preferences) -> None:
     """
     Distribute workout blocks across the week, aiming for goals.workouts_per_week.
     Each workout is 60 minutes. Placed in the first available slot on each day,
@@ -214,12 +224,13 @@ def place_workouts_for_week(weekly_grid, goals, prefs):
                 placed += 1
                 break
 
-def generate_weekly_plan (
+# generate_weekly_plan
+def generate_weekly_plan(
         events: List[Event],
         tasks: List[Task],
         goals: WellnessGoal,
-        prefs: Preferences
-):
+        prefs: Preferences,
+) -> Dict[date, List[dict]]:
     """
     Generate a weekly schedule plan based on user input.
     Steps:
@@ -270,7 +281,7 @@ def generate_weekly_plan (
             #if the event overlaps with any block flag it
             if not (event_end_dt <= block_start or event_start_dt >= block_end):
                 overlap = True
-                print(f"Overlap detected on {event_day} with {block['category']}")
+                logger.warning("Overlap detected on %s: '%s' conflicts with '%s' — skipping.", event_day, event.name, block['category'])
                 break
 
         # add event only if no overlap
@@ -331,7 +342,8 @@ def generate_weekly_plan (
     print_schedule(weekly_grid)
     return weekly_grid
 
-def print_schedule(weekly_grid):
+# print_schedule
+def print_schedule(weekly_grid: Dict[date, List[dict]]) -> None:
     print("\n====================== WEEKLY SCHEDULE ======================\n")
     for day, blocks in weekly_grid.items():
         print(f"{day.strftime('%A, %B %d, %Y')}")
