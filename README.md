@@ -1,9 +1,8 @@
 # 🧠 Hybrid Student Well-Being Scheduler
 
 A Python-based scheduling engine that generates a balanced weekly plan for students
-by combining academics, wellness, and personal habits. The system considers fixed
-events, tasks, sleep, workouts, meals, and self-care goals to produce a structured
-7-day schedule with scored balance reporting and rule violation checks.
+by combining academics, wellness, and personal habits. V2 adds a FastAPI REST API
+and SQLite persistence on top of the V1 scheduling engine.
 
 ---
 
@@ -11,25 +10,47 @@ events, tasks, sleep, workouts, meals, and self-care goals to produce a structur
 
 - Python 3.11+
 - Pydantic v2 (data models & validation)
+- SQLAlchemy + SQLite (persistence)
+- Alembic (database migrations)
+- FastAPI + Uvicorn (REST API)
 - Typer (CLI)
-- Pytest (testing)
-
-> V2 will introduce FastAPI + SQLite for persistence and a minimal UI.
+- Pytest (141 tests)
 
 ---
 
 ## 📂 Project Structure
+
 proj1/
 ├── src/
-│   ├── models.py      # Event, Task, WellnessGoal, Preferences — Pydantic models
-│   ├── engine.py      # Scheduling engine — sleep, events, meals, workouts, study
-│   ├── scoring.py     # Balance scorer — rates study / wellness / free time ratio
-│   ├── rules.py       # Constraint checks — late study, back-to-back blocks, free time
-│   └── cli.py         # Typer CLI entry point
-└── tests/
-├── test_models.py      # 25 model validation tests
-├── test_engine.py      # Engine unit tests (slots, sorting, placement)
-└── test_integration.py # End-to-end scoring and rules tests
+│   ├── models.py          # Pydantic models — Event, Task, WellnessGoal, Preferences
+│   ├── engine.py          # Scheduling engine — sleep, events, meals, workouts, study
+│   ├── scoring.py         # Balance scorer — rates study / wellness / free time ratio
+│   ├── rules.py           # Constraint checks — late study, back-to-back, free time
+│   ├── cli.py             # Typer CLI entry point
+│   ├── database/
+│   │   ├── models.py      # SQLAlchemy ORM models
+│   │   ├── session.py     # Session factory and DB initialisation
+│   │   └── crud.py        # CRUD helpers for all entities
+│   └── api/
+│       ├── schemas.py     # Pydantic request/response schemas
+│       ├── main.py        # FastAPI app factory
+│       └── routers/
+│           ├── tasks.py   # GET, POST, PATCH, DELETE /tasks
+│           ├── events.py  # GET, POST, DELETE /events
+│           └── plans.py   # POST /plans/generate, GET /plans, GET /plans/{id}
+├── alembic/               # Database migrations
+├── tests/
+│   ├── conftest.py            # Shared fixtures and in-memory DB setup
+│   ├── test_models.py         # 25 Pydantic model validation tests
+│   ├── test_engine.py         # 30 engine unit tests
+│   ├── test_integration.py    # 15 scoring and rules integration tests
+│   ├── test_api_tasks.py      # 28 tasks API tests
+│   ├── test_api_events.py     # 14 events API tests
+│   └── test_api_plans.py      # 19 plans API tests
+├── alembic.ini
+├── scheduler.db           # SQLite database (auto-created on first run)
+└── README.md
+
 
 ---
 
@@ -46,31 +67,31 @@ source .venv/bin/activate     # Mac / Linux
 ### 2. Install dependencies
 
 ```bash
-pip install pydantic typer pytest
+pip install pydantic sqlalchemy alembic fastapi uvicorn httpx typer pytest
 ```
 
-### 3. Run the scheduler
+### 3. Run database migrations
+
+```bash
+alembic upgrade head
+```
+
+### 4. Start the API server
+
+```bash
+PYTHONPATH=. uvicorn src.api.main:app --reload
+```
+
+API is live at `http://127.0.0.1:8000`
+Interactive docs at `http://127.0.0.1:8000/docs`
+
+### 5. Or use the CLI instead
 
 ```bash
 PYTHONPATH=. python3 -m src.cli --score --rules
 ```
 
-Available options:
-
-| Flag | Default | Description |
-|---|---|---|
-| `--sleep` | 7.0 | Minimum sleep hours per day |
-| `--workouts` | 3 | Workouts per week |
-| `--meals` | 3 | Meals per day |
-| `--self-care` | 2 | Self-care blocks per week |
-| `--earliest` | 08:00 | Earliest start time |
-| `--latest` | 22:00 | Latest end time |
-| `--block` | 60 | Study block length (minutes) |
-| `--break-mins` | 15 | Break after each study block (minutes) |
-| `--score` | off | Print weekly balance score report |
-| `--rules` | off | Print rule violation report |
-
-### 4. Run tests
+### 6. Run tests
 
 ```bash
 PYTHONPATH=. pytest tests/ -v
@@ -78,29 +99,93 @@ PYTHONPATH=. pytest tests/ -v
 
 ---
 
+## 🌐 API Endpoints
+
+### Tasks
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/tasks/` | Create a task |
+| `GET` | `/tasks/` | List all tasks |
+| `GET` | `/tasks/{id}` | Get a task by ID |
+| `PATCH` | `/tasks/{id}` | Update a task |
+| `DELETE` | `/tasks/{id}` | Delete a task |
+
+### Events
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/events/` | Create a fixed event |
+| `GET` | `/events/` | List all events |
+| `GET` | `/events/{id}` | Get an event by ID |
+| `DELETE` | `/events/{id}` | Delete an event |
+
+### Plans
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/plans/generate` | Generate and persist a weekly plan |
+| `GET` | `/plans/` | List all plans (summary, no blocks) |
+| `GET` | `/plans/{id}` | Get a plan with all blocks |
+
+### Health
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Server health check |
+
+---
+
+## 📋 Example Usage
+
+```bash
+# add a task
+curl -X POST http://localhost:8000/tasks/ \
+  -H "Content-Type: application/json" \
+  -d '{"title":"COMP 232 Quiz","estimated_minutes":120,"priority":5,"due_date":"2099-01-01"}'
+
+# add a fixed event
+curl -X POST http://localhost:8000/events/ \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Lecture","date":"2026-05-05","start_time":"09:00:00","end_time":"10:00:00","category":"class"}'
+
+# generate a weekly plan using all tasks and events in the DB
+curl -X POST http://localhost:8000/plans/generate \
+  -H "Content-Type: application/json" \
+  -d '{"sleep":7.5,"workouts":4,"meals":3,"block_minutes":60,"break_minutes":15}'
+
+# retrieve the plan
+curl http://localhost:8000/plans/1
+```
+
+---
+
 ## 🧩 Features
 
-- **7-day grid** starting from the current Monday
-- **Sleep blocks** placed from `latest_end` for `min_sleep_hours_per_day`
-- **Fixed events** placed with overlap detection
-- **Meals** spaced evenly across the day window
-- **Workouts** distributed across the week based on goal frequency
-- **Study blocks** fill remaining slots, rotating across tasks by priority and due date, with optional breaks
-- **Balance scorer** rates each day and the full week (0.0–1.0) against ideal study/wellness/free time ratios
-- **Rules engine** flags late-night study, back-to-back study blocks, and days with insufficient free time
+**Scheduling engine (V1)**
+- 7-day grid starting from the current Monday
+- Sleep blocks placed from `latest_end` for `min_sleep_hours_per_day`
+- Fixed events placed with overlap detection
+- Meals spaced evenly across the day window
+- Workouts distributed across the week
+- Study blocks fill remaining slots, rotating across tasks by priority and due date
+- Balance scorer rates each day and the full week (0.0–1.0)
+- Rules engine flags late-night study, back-to-back blocks, and low free time
+
+**API + persistence (V2)**
+- Full CRUD for tasks and events via REST API
+- Plans generated from live DB data and persisted with all blocks
+- In-memory SQLite for isolated test runs
+- Swagger UI at `/docs` for interactive exploration
 
 ---
 
 ## 🗺️ Roadmap
 
-### V2 — Persistence + API
-- Store schedules and tasks in SQLite
-- FastAPI endpoints for plans and tasks
-- Minimal UI to visualise the weekly plan
-
 ### V3 — AI Balance Mentor (Optional)
-- Recommendations for improving schedule balance
 - Natural language explanation of the weekly plan
+- Recommendations for improving schedule balance
+- Conversational adjustments ("move my workouts to mornings")
 
 ---
 
