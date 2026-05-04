@@ -339,7 +339,6 @@ def generate_weekly_plan(
         weekly_grid[day] = sorted(blocks, key=lambda b: b["start"])
     
     # print readable schedule
-    print_schedule(weekly_grid)
     return weekly_grid
 
 # print_schedule

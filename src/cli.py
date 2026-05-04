@@ -53,6 +53,8 @@ def plan(
     tasks: List[Task] = []
 
     weekly_grid = generate_weekly_plan(events, tasks, goals, prefs)
+    from .engine import print_schedule
+    print_schedule(weekly_grid)
 
     if score:
         report = score_week(weekly_grid, prefs)
