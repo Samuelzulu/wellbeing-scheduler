@@ -9,6 +9,7 @@ from .models import Event, Task, WellnessGoal, Preferences
 from .engine import generate_weekly_plan
 from .scoring import score_week, print_score_report
 from .rules import run_all_rules, print_rules_report
+from .mentor import ask_mentor
 
 app = typer.Typer(
     help="Student well-being scheduler — generate your weekly plan.",
@@ -28,6 +29,7 @@ def plan(
     break_mins: int = typer.Option(15, help="Break length after each study block"),
     score: bool = typer.Option(False, "--score", help="Print balance score report"),
     rules: bool = typer.Option(False, "--rules", help="Print rules violation report"),
+    chat: bool = typer.Option(False, "--chat", help="Start interactive mentor chat after generating"),
 ) -> None:
     """Generate a weekly schedule and print it to the terminal."""
 
@@ -64,6 +66,42 @@ def plan(
         violations = run_all_rules(weekly_grid, prefs)
         print_rules_report(violations)
 
+    if chat:
+        _run_chat(weekly_grid, prefs)
+
+def _run_chat(weekly_grid: dict, prefs) -> None:
+    """Interactive multi-turn mentor chat loop."""
+    print("\n==================== AI MENTOR CHAT ====================")
+    print("Ask anything about your schedule. Type 'quit' to exit.\n")
+
+    history = []
+    while True:
+        try:
+            question = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nExiting chat.")
+            break
+
+        if not question:
+            continue
+        if question.lower() in ("quit", "exit", "q"):
+            print("Goodbye!")
+            break
+
+        try:
+            answer, history = ask_mentor(
+                question=question,
+                weekly_grid=weekly_grid,
+                prefs=prefs,
+                conversation_history=history,
+            )
+            print(f"\nMentor: {answer}\n")
+        except RuntimeError as e:
+            print(f"\nError: {e}\n")
+            break
+        except Exception as e:
+            print(f"\nUnexpected error: {e}\n")
+            break
 
 def main() -> None:
     app()
