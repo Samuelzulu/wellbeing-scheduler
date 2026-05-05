@@ -151,3 +151,20 @@ class PlanSummaryResponse(BaseModel):
     created_at: date
     week_start: date
     weekly_balance_score: Optional[float]
+    
+# Mentor schemas
+class ConversationMessage(BaseModel):
+    role: str
+    content: str
+
+
+class MentorRequest(BaseModel):
+    plan_id: Optional[int] = None  # if None, uses the latest plan
+    question: str
+    conversation_history: Optional[List[ConversationMessage]] = None
+
+
+class MentorResponse(BaseModel):
+    answer: str
+    conversation_history: List[ConversationMessage]
+    plan_id: int
