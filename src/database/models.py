@@ -9,7 +9,17 @@ from sqlalchemy.orm import DeclarativeBase, relationship
 class Base(DeclarativeBase):
     pass
 
+class UserORM(Base):
+    __tablename__ = "users"
 
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(Date, nullable=False)
+    plans = relationship("PlanORM", back_populates="user", cascade="all, delete-orphan")
+    tasks = relationship("TaskORM", back_populates="user", cascade="all, delete-orphan")
+    events = relationship("EventORM", back_populates="user", cascade="all, delete-orphan")
+    
 class TaskORM(Base):
     __tablename__ = "tasks"
 
@@ -20,6 +30,9 @@ class TaskORM(Base):
     priority = Column(Integer, nullable=False)
     due_date = Column(Date, nullable=False)
     notes = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user = relationship("UserORM", back_populates="tasks")
 
 
 class EventORM(Base):
@@ -31,6 +44,9 @@ class EventORM(Base):
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
     category = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user = relationship("UserORM", back_populates="events")
 
 
 class WellnessGoalORM(Base):
@@ -60,6 +76,11 @@ class PlanORM(Base):
     created_at = Column(Date, nullable=False)
     week_start = Column(Date, nullable=False)
     weekly_balance_score = Column(Float, nullable=True)
+    weekly_balance_score = Column(Float, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    share_token = Column(String, unique=True, nullable=True, index=True)
+    user = relationship("UserORM", back_populates="plans")
+    blocks = relationship("PlanBlockORM", back_populates="plan", cascade="all, delete-orphan")
     blocks = relationship("PlanBlockORM", back_populates="plan", cascade="all, delete-orphan")
 
 

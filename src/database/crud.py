@@ -158,3 +158,26 @@ def get_plan(db: Session, plan_id: int) -> Optional[PlanORM]:
 
 def get_all_plans(db: Session) -> List[PlanORM]:
     return db.query(PlanORM).order_by(PlanORM.created_at.desc()).all()
+
+# Users
+def create_user(db: Session, email: str, hashed_password: str) -> "UserORM":
+    from .models import UserORM
+    user = UserORM(
+        email=email,
+        hashed_password=hashed_password,
+        created_at=date.today(),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def get_user_by_email(db: Session, email: str) -> Optional["UserORM"]:
+    from .models import UserORM
+    return db.query(UserORM).filter(UserORM.email == email).first()
+
+
+def get_user_by_id(db: Session, user_id: int) -> Optional["UserORM"]:
+    from .models import UserORM
+    return db.query(UserORM).filter(UserORM.id == user_id).first()
